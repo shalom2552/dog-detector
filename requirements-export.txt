@@ -1,0 +1,6 @@
+# Export-only deps (exporter stage): torch pulls in via ultralytics from the CPU
+# wheel index. Not present in the runtime image.
+ultralytics==8.3.40
+onnx==1.17.0
+onnxslim==0.1.94
+onnxscript==0.7.0

@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dog Detector</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --radius: 16px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    
+    .app-title::before {
+      content: '';
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--green);
+    }
+
+    .app-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 32px;
+      overflow-y: auto;
+    }
+
+    .panel-area {
+      width: 320px;
+      border-left: 1px solid var(--border);
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .camera-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Partial Styles */
+    .camera-tile {
+      flex: 0 0 auto;
+      width: 640px;
+      max-width: 100%;
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(8px);
+    }
+    
+    .camera-tile:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .tile-header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .cam-name {
+      font-weight: 600;
+      font-size: 1.05rem;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: var(--transition);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      transition: var(--transition);
+    }
+    
+    /* Tile Controls Layout */
+    .tile-controls {
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.15);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .controls-left {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-height: 32px;
+    }
+    .controls-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Buttons */
+    .btn-control {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-shrink: 0;
+      white-space: nowrap;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-control:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+    .btn-control svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: var(--green);
+    }
+    .btn-success:hover {
+      background: rgba(16, 185, 129, 0.2);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: var(--red);
+    }
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* Editing State */
+    .zone-actions {
+      display: none;
+      gap: 8px;
+    }
+    .camera-tile.is-editing .zone-actions {
+      display: flex;
+    }
+    .camera-tile.is-editing .btn-toggle-edit {
+      background: var(--amber);
+      color: #000;
+      border-color: var(--amber);
+    }
+
+    /* Pause/Resume State Visibility */
+    .btn-pause, .btn-resume { display: none; }
+    
+    .cam-state-active .btn-pause,
+    .cam-state-alert .btn-pause,
+    .cam-state-fired .btn-pause {
+      display: flex;
+    }
+    .cam-state-paused .btn-resume {
+      display: flex;
+    }
+
+    .feed-container {
+      background: #000;
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      min-height: 0;
+      aspect-ratio: 16 / 9;
+      width: 100%;
+    }
+
+    .feed-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .feed-img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    
+    .camera-tile:not(.is-editing):hover .feed-img {
+      transform: scale(1.02);
+    }
+    
+    .zone-editor-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 20;
+      pointer-events: none;
+    }
+    .zone-editor-svg.active {
+      pointer-events: auto;
+      background: rgba(0,0,0,0.4);
+      cursor: crosshair;
+    }
+
+
+    .feed-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      color: var(--amber);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .tile-footer {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .last-alert {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .tile-alert-text {
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    /* Dynamic State Classes */
+    .cam-state-active .status-dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .cam-state-active .status-text { color: var(--green); }
+    .cam-state-active .tile-alert-text { color: var(--text-muted); }
+    
+    .cam-state-alert { border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 0 24px rgba(239, 68, 68, 0.2); }
+    .cam-state-alert .status-badge { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); }
+    .cam-state-alert .status-dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
+    .cam-state-alert .status-text { color: var(--red); }
+    .cam-state-alert .tile-alert-text { color: var(--red); }
+    
+    @keyframes pulse-fire {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8); }
+      70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .cam-state-fired { border-color: rgba(239, 68, 68, 1); box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.3); }
+    .cam-state-fired .status-badge { background: rgba(239, 68, 68, 0.3); border-color: rgba(239, 68, 68, 1); }
+    .cam-state-fired .status-dot { background: var(--red); animation: pulse-fire 1s infinite; }
+    .cam-state-fired .status-text { color: #fff; font-weight: bold; }
+    .cam-state-fired .tile-alert-text { color: var(--red); font-weight: bold; }
+    
+    .cam-state-lost .status-badge { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); }
+    .cam-state-lost .status-dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .cam-state-lost .status-text { color: var(--amber); }
+    .cam-state-lost .feed-img { opacity: 0.4; filter: grayscale(100%); transform: scale(1) !important; }
+    .cam-state-lost .feed-overlay { opacity: 1; }
+    
+    .cam-state-paused .status-badge { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); }
+    .cam-state-paused .status-dot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+    .cam-state-paused .status-text { color: var(--amber); }
+    .cam-state-paused .feed-img { opacity: 0.65; }
+    
+    .feed-watermark-paused {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(245, 158, 11, 0.95);
+      color: #11141c;
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .cam-state-paused .feed-watermark-paused {
+      opacity: 1;
+    }
+    
+    @media (max-width: 1024px) {
+      .app-layout { flex-direction: column; height: auto; overflow: visible; }
+      .main-content { padding: 8px; overflow: visible; }
+      .panel-area { width: 100%; border-left: none; border-top: 1px solid var(--border); padding: 16px; }
+      .feed-wrapper { max-height: 60vh; }
+      .tile-header { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1 class="app-title">Dog Detector</h1>
+    <div id="global-time" style="color: var(--text-muted); font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.9rem;">--:--:--</div>
+  </header>
+
+  <div class="app-layout">
+    <main class="main-content">
+      {% block content %}{% endblock %}
+    </main>
+    <aside class="panel-area">
+      {% include "partials/panel_area.html" %}
+    </aside>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(err => console.error("SW failed:", err));
+    }
+
+    // Global Clock
+    setInterval(() => {
+      document.getElementById('global-time').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    }, 1000);
+
+    // Camera reconnect logic. The poller owns tile lost/active state; here we only
+    // mark the feed broken and schedule a retry so the two don't fight (flicker).
+    function reconnectFeed(imgEl, originalSrc) {
+      imgEl.dataset.feedBroken = '1';
+      setTimeout(() => {
+        imgEl.src = originalSrc + '?t=' + Date.now();
+      }, 2000);
+    }
+
+    // Global State polling
+    // /state returns {cameras: {id: {...}}, boot_time}; each tile reads its own
+    // camera's entry via its data-cam-id.
+    let lastStateFetch = Date.now();
+    let lastBootTime = null;
+
+    setInterval(() => {
+      fetch('/state')
+        .then(r => r.json())
+        .then(s => {
+          lastStateFetch = Date.now();
+          const cams = s.cameras || {};
+
+          // Check if server explicitly rebooted
+          let justRebooted = false;
+          if (s.boot_time) {
+            if (lastBootTime && lastBootTime !== s.boot_time) {
+              justRebooted = true;
+            }
+            lastBootTime = s.boot_time;
+          }
+
+          document.querySelectorAll('.camera-tile').forEach(tile => {
+            const cs = cams[tile.dataset.camId];
+            const statusText = tile.querySelector('.status-text');
+            const alertText = tile.querySelector('.tile-alert-text');
+            const img = tile.querySelector('.feed-img');
+            const feedBroken = img && img.dataset.feedBroken === '1';
+            const wasLost = tile.classList.contains('cam-state-lost');
+            const stale = !cs || cs.frame_age == null || cs.frame_age > 3;
+
+            tile.classList.remove('cam-state-active', 'cam-state-alert', 'cam-state-fired', 'cam-state-lost', 'cam-state-paused');
+
+            if (stale || feedBroken) {
+              tile.classList.add('cam-state-lost');
+              statusText.textContent = 'SIGNAL LOST';
+            } else if (cs && cs.paused) {
+              tile.classList.add('cam-state-paused');
+              statusText.textContent = 'PAUSED';
+              alertText.textContent = 'Detection paused';
+            } else {
+              if (wasLost || justRebooted) {
+                // Connection restored, force reload the MJPEG stream
+                const url = new URL(img.src, window.location.origin);
+                url.searchParams.set('t', Date.now());
+                img.src = url.toString();
+              }
+              
+              const justFired = cs.last_trigger_age != null && cs.last_trigger_age < 4;
+
+              if (justFired) {
+                tile.classList.add('cam-state-fired');
+                statusText.textContent = 'ALARM FIRED!';
+                alertText.textContent = 'Triggered Just Now';
+              } else if (cs.dog_in_zone) {
+                tile.classList.add('cam-state-alert');
+                statusText.textContent = 'DETECTING (WAITING)';
+                alertText.textContent = 'Dog inside zone...';
+              } else {
+                tile.classList.add('cam-state-active');
+                statusText.textContent = 'MONITORING';
+                if (cs.last_trigger) {
+                  alertText.textContent = new Date(cs.last_trigger * 1000).toLocaleTimeString('en-US', {hour12: false});
+                } else {
+                  alertText.textContent = '—';
+                }
+              }
+            }
+          });
+
+          // Helper for uptime formatting
+          const formatUptime = (secs) => {
+            if (secs < 60) return `${secs}s`;
+            const mins = Math.floor(secs / 60);
+            if (mins < 60) return `${mins}m ${secs % 60}s`;
+            const hours = Math.floor(mins / 60);
+            if (hours < 24) return `${hours}h ${mins % 60}m`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ${hours % 24}h`;
+          };
+
+          const camIds = Object.keys(cams);
+          const first = camIds.length ? cams[camIds[0]] : null;
+
+          // Update Server Info
+          const elUptime = document.getElementById('server-uptime');
+          if (elUptime && s.boot_time) {
+            const uptime = Math.floor((Date.now() / 1000) - s.boot_time);
+            elUptime.textContent = formatUptime(uptime);
+          }
+          const elServerModel = document.getElementById('server-model');
+          if (elServerModel && first) {
+            elServerModel.textContent = first.model || '—';
+          }
+          const elResolution = document.getElementById('server-resolution');
+          if (elResolution && s.imgsz) {
+            elResolution.textContent = `${s.imgsz}x${s.imgsz}`;
+          }
+          const elRefresh = document.getElementById('server-refresh');
+          if (elRefresh && s.stream_fps) {
+            elRefresh.textContent = `${s.stream_fps} FPS`;
+          }
+          const elServerCams = document.getElementById('server-cams');
+          if (elServerCams) {
+            elServerCams.textContent = camIds.length;
+          }
+
+          // Update Cameras Configuration List
+          const camerasContainer = document.getElementById('cameras-info-list');
+          if (camerasContainer) {
+            camerasContainer.innerHTML = '';
+            camIds.forEach(camId => {
+              const cam = cams[camId];
+              const card = document.createElement('div');
+              card.style.cssText = 'padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.2); font-size: 0.85rem; display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);';
+
+              const titleRow = document.createElement('div');
+              titleRow.style.cssText = 'display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; margin-bottom: 4px;';
+
+              const titleText = document.createElement('span');
+              titleText.style.cssText = 'font-weight: 700; color: var(--text-color);';
+              titleText.textContent = cam.name || camId;
+
+              const statusBadge = document.createElement('span');
+              statusBadge.style.cssText = 'font-weight: 600; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem;';
+              if (cam.paused) {
+                statusBadge.textContent = 'PAUSED';
+                statusBadge.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
+                statusBadge.style.color = 'var(--amber)';
+              } else {
+                statusBadge.textContent = 'ACTIVE';
+                statusBadge.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+                statusBadge.style.color = 'var(--green)';
+              }
+
+              titleRow.appendChild(titleText);
+              titleRow.appendChild(statusBadge);
+              card.appendChild(titleRow);
+
+              const addRow = (label, val) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; justify-content: space-between;';
+                row.innerHTML = `<span style="color: var(--text-muted);">${label}</span><span style="font-weight: 600;">${val}</span>`;
+                card.appendChild(row);
+              };
+
+              addRow('Target Frame Rate', cam.detect_fps != null ? cam.detect_fps + ' FPS' : '—');
+              addRow('Confidence', cam.conf_threshold != null ? (cam.conf_threshold * 100).toFixed(0) + '%' : '—');
+              addRow('Persist Delay', cam.persist_seconds != null ? cam.persist_seconds + 's' : '—');
+              addRow('Alert Cooldown', cam.cooldown_seconds != null ? cam.cooldown_seconds + 's' : '—');
+              addRow('Min Zone Overlap', cam.zone_min_overlap != null ? (cam.zone_min_overlap * 100).toFixed(0) + '%' : '—');
+              addRow('Motion Gate', cam.motion_threshold !== undefined ? cam.motion_threshold : '—');
+
+              const lastAlertTime = cam.last_trigger
+                ? new Date(cam.last_trigger * 1000).toLocaleTimeString('en-US', {hour12: false})
+                : '—';
+              addRow('Last Alert', lastAlertTime);
+
+              camerasContainer.appendChild(card);
+            });
+          }
+        })
+        .catch(err => {
+          console.error('State fetch error:', err);
+          // Set to lost immediately on network failure
+          document.querySelectorAll('.camera-tile').forEach(tile => {
+            tile.classList.remove('cam-state-active', 'cam-state-alert');
+            tile.classList.add('cam-state-lost');
+            tile.querySelector('.status-text').textContent = 'NETWORK ERR';
+          });
+        });
+    }, 1000);
+
+    // Zone Editor Logic — edit state lives on each tile so cameras edit independently.
+    function tilePoints(tile) {
+        if (!tile.editPoints) tile.editPoints = [];
+        return tile.editPoints;
+    }
+
+    function toggleEditZone(btn) {
+        const tile = btn.closest('.camera-tile');
+        const svg = tile.querySelector('.zone-editor-svg');
+        if (svg.classList.contains('active')) {
+            svg.classList.remove('active');
+            tile.classList.remove('is-editing');
+            if (btn.querySelector('span')) btn.querySelector('span').textContent = 'EDIT ZONE';
+        } else {
+            svg.classList.add('active');
+            tile.classList.add('is-editing');
+            if (btn.querySelector('span')) btn.querySelector('span').textContent = 'CANCEL';
+        }
+        tile.editPoints = [];
+        drawEditor(tile);
+    }
+
+    function clearZone(btn) {
+        const tile = btn.closest('.camera-tile');
+        tile.editPoints = [];
+        drawEditor(tile);
+    }
+
+    function saveZone(btn) {
+        const tile = btn.closest('.camera-tile');
+        const points = tilePoints(tile);
+        if (points.length < 3) {
+            alert("Need at least 3 points for a polygon!");
+            return;
+        }
+        fetch('/api/zone', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({points: points, cam_id: tile.dataset.camId})
+        }).then(r => r.json()).then(res => {
+            if(res.status === 'ok') {
+                toggleEditZone(tile.querySelector('.btn-toggle-edit'));
+            } else {
+                alert("Failed to save zone");
+            }
+        });
+    }
+
+    document.querySelectorAll('.zone-editor-svg').forEach(svg => {
+        svg.addEventListener('click', e => {
+            if (!svg.classList.contains('active')) return;
+            const tile = svg.closest('.camera-tile');
+            const rect = svg.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            tilePoints(tile).push([x, y]);
+            drawEditor(tile);
+        });
+    });
+
+    function drawEditor(tile) {
+        const svg = tile.querySelector('.zone-editor-svg');
+        const polygon = svg.querySelector('polygon');
+        const group = svg.querySelector('.editor-points');
+        const points = tilePoints(tile);
+
+        if (points.length > 0) {
+            polygon.setAttribute('points', points.map(p => `${p[0]*100},${p[1]*100}`).join(' '));
+        } else {
+            polygon.removeAttribute('points');
+        }
+
+        group.innerHTML = '';
+        points.forEach(p => {
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute('cx', p[0]*100);
+            circle.setAttribute('cy', p[1]*100);
+            circle.setAttribute('r', '1.5');
+            circle.setAttribute('fill', '#fff');
+            circle.setAttribute('stroke', '#000');
+            circle.setAttribute('stroke-width', '0.5');
+            group.appendChild(circle);
+        });
+    }
+
+    function pauseCamera(btn) {
+        const tile = btn.closest('.camera-tile');
+        fetch('/api/pause/' + tile.dataset.camId, { method: 'POST' });
+        // Optimistic UI update
+        tile.classList.remove('cam-state-active', 'cam-state-alert', 'cam-state-fired');
+        tile.classList.add('cam-state-paused');
+        tile.querySelector('.status-text').textContent = 'PAUSED';
+    }
+
+    function resumeCamera(btn) {
+        const tile = btn.closest('.camera-tile');
+        fetch('/api/resume/' + tile.dataset.camId, { method: 'POST' });
+        // Optimistic UI update
+        tile.classList.remove('cam-state-paused');
+        tile.classList.add('cam-state-active');
+        tile.querySelector('.status-text').textContent = 'MONITORING';
+    }
+  </script>
+</body>
+</html>

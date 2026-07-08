@@ -1,0 +1,58 @@
+<div class="camera-tile cam-state-active" id="tile-{{ cam.id }}" data-cam-id="{{ cam.id }}">
+  <div class="tile-header">
+    <span class="cam-name">{{ cam.name }}</span>
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      <span class="status-text">CONNECTING</span>
+    </div>
+  </div>
+  <div class="feed-container">
+    <div class="feed-wrapper">
+      <img class="feed-img" src="{{ cam.feed_url }}" onerror="reconnectFeed(this, '{{ cam.feed_url }}')" onload="this.dataset.feedBroken = ''">
+      <div class="feed-watermark-paused">DETECTION PAUSED</div>
+      <svg class="zone-editor-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polygon fill="rgba(16, 185, 129, 0.3)" stroke="#10b981" stroke-width="0.5" stroke-dasharray="1" />
+          <g class="editor-points"></g>
+      </svg>
+      <div class="feed-overlay">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 4px;">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span>RECONNECTING</span>
+      </div>
+    </div>
+  </div>
+  <div class="tile-controls">
+    <div class="controls-left">
+      <button class="btn-control btn-pause" onclick="pauseCamera(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        <span>PAUSE</span>
+      </button>
+      <button class="btn-control btn-success btn-resume" onclick="resumeCamera(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <span>RESUME</span>
+      </button>
+    </div>
+    <div class="controls-right">
+      <div class="zone-actions">
+          <button onclick="clearZone(this)" class="btn-control btn-danger">CLEAR</button>
+          <button onclick="saveZone(this)" class="btn-control btn-success">SAVE</button>
+      </div>
+      <button class="btn-control btn-toggle-edit" onclick="toggleEditZone(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+        <span>EDIT ZONE</span>
+      </button>
+    </div>
+  </div>
+  <div class="tile-footer">
+    <div class="last-alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      Last Detection: <span class="tile-alert-text" style="margin-left: 4px;">—</span>
+    </div>
+  </div>
+</div>

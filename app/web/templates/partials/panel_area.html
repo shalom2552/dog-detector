@@ -1,0 +1,44 @@
+<div class="panel-section" style="margin-bottom: 24px;">
+  <h3 style="margin-top:0; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; font-weight: 600;">Server Info</h3>
+  
+  <div style="padding: 16px; border-radius: 12px; background: rgba(0,0,0,0.2); font-size: 0.85rem; display: flex; flex-direction: column; gap: 12px; border: 1px solid rgba(255,255,255,0.05);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <span style="color: var(--text-muted);">Status</span>
+      <span style="font-weight: 600; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.1); color: var(--green);">ONLINE</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--text-muted);">Uptime</span>
+      <span id="server-uptime" style="font-weight: 600; font-variant-numeric: tabular-nums;">—</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--text-muted);">Model Backend</span>
+      <span id="server-model" style="font-weight: 600;">—</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--text-muted);">YOLO Resolution</span>
+      <span id="server-resolution" style="font-weight: 600;">—</span>
+    </div>
+
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--text-muted);">Web UI Refresh</span>
+      <span id="server-refresh" style="font-weight: 600;">—</span>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between;">
+      <span style="color: var(--text-muted);">Connected Cameras</span>
+      <span id="server-cams" style="font-weight: 600;">—</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="panel-section">
+  <h3 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; font-weight: 600;">Cameras Configuration</h3>
+  <div id="cameras-info-list">
+    <!-- Dynamically populated by JS -->
+  </div>
+</div>

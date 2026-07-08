@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="camera-grid">
+  {% for cam in cameras %}
+    {% include "partials/camera_tile.html" %}
+  {% endfor %}
+</div>
+{% endblock %}

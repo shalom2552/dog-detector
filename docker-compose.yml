@@ -1,0 +1,47 @@
+services:
+  dog-detector:
+    build:
+      context: .
+      target: runtime
+    image: dog-detector:latest
+    container_name: dog-detector
+    restart: unless-stopped
+
+    # A leak degrades to a restart instead of freezing a Pi. Runtime image (no
+    # torch) idles ~200-300 MB; raise this if you configure a bigger model.
+    # Multi-camera (data/cameras.json): budget ~100m extra per additional
+    # camera for its decode buffers, e.g. 3 cameras -> ~712m.
+    mem_limit: 512m
+
+    ports:
+      - "5000:5000"
+
+    # Compose errors if .env is missing: copy it from .env.example first.
+    env_file: ${ENV_FILE:-.env}
+
+    volumes:
+      - ./app:/app             # live code editing
+      - ./models:/models       # exported weights persist across rebuilds
+      - ./data:/data           # sound files + test videos
+
+    # Local USB webcam (Linux/Pi only), opt-in:
+    # devices:
+    #   - "/dev/video0:/dev/video0"
+    # group_add:
+    #   - "video"
+    #   - "983"   # your host's video gid: getent group video | cut -d: -f3
+
+  # One-time model export (.pt -> ONNX/NCNN). Not started by default:
+  #   docker compose run --rm exporter
+  exporter:
+    build:
+      context: .
+      target: exporter
+    image: dog-detector-export:latest
+    profiles: ["tools"]
+    env_file: ${ENV_FILE:-.env}
+    volumes:
+      - ./app:/app
+      - ./models:/models
+      - ./data:/data
+

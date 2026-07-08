@@ -1,0 +1,40 @@
+# secrets & local config
+.env
+.env.*
+!.env.example
+.local/
+*.ignore
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# model weights (downloaded at runtime, large)
+models/*
+!models/.gitkeep
+*.pt
+
+# test videos dropped into data/ (mp3 alerts stay tracked)
+data/*.mp4
+data/*.mkv
+data/*.avi
+
+# user saved config 
+data/*.json
+
+# PyInstaller launcher build output
+launcher/build/
+launcher/dist/
+*.spec
+# built launcher copied to the repo root for use
+/Dog Detector
+/Dog Detector.exe
+
+# os / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
