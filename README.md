@@ -10,6 +10,8 @@ watching detections. The UI is protected by HTTP Basic Auth, so it can be
 exposed remotely through a [Cloudflare tunnel](#remote-access-cloudflare-tunnel).
 A small desktop launcher provides one-click start/stop for non-technical users.
 
+![Dog Detector demo](data/screenshot.png)
+
 ## Features
 
 - Runs entirely in Docker; the runtime image is torch-free and light enough for a Raspberry Pi
