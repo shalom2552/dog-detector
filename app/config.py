@@ -35,7 +35,7 @@ STREAM_FPS = _f("STREAM_FPS", 10.0)  # web JPEG push rate, independent of detect
 # --- model ------------------------------------------------------------------
 # .pt auto-downloads then exports to ONNX (x86) / NCNN (Pi) on first run.
 MODEL = os.environ.get("MODEL", "yolo11n.pt")
-CONF_THRESHOLD = _f("CONF_THRESHOLD", 0.35)
+CONF_THRESHOLD = _f("CONF_THRESHOLD", 0.30)
 IMGSZ = _i("IMGSZ", 320)
 
 # --- detection zone (normalized 0..1, flat x,y pairs defining a polygon) ---
@@ -59,7 +59,8 @@ COOLDOWN_SECONDS = _f("COOLDOWN_SECONDS", 30.0)  # min gap between alerts
 # gate; ~30 very sensitive; 100 default; 500 coarse; 4096 max (disables YOLO).
 MOTION_THRESHOLD = _i("MOTION_THRESHOLD", 100)
 # Run inference at least this often regardless of the gate (slow/stationary dog).
-MOTION_HEARTBEAT_SECONDS = _f("MOTION_HEARTBEAT_SECONDS", 10.0)
+# This bounds how long a dog that arrived unseen can sit before the first look.
+MOTION_HEARTBEAT_SECONDS = _f("MOTION_HEARTBEAT_SECONDS", 3.0)
 
 # --- zone membership --------------------------------------------------------
 # Fraction of a detection box that must fall inside the zone to count as "in zone".

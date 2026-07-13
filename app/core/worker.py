@@ -40,12 +40,23 @@ class CameraWorker:
     # ── Per-frame pipeline phases ───────────────────────────────────────────
 
     def _maybe_infer(self, frame, now):
-        """Gate inference at detect_fps; submit on motion, while a candidate accumulates, or per heartbeat."""
+        """Gate inference at detect_fps; submit on motion, while chasing a candidate, or per heartbeat.
+
+        Chasing — armed, a streak accumulating, or a sighting within grace —
+        bypasses the motion gate so the confirming inference arrives at
+        detect_fps instead of waiting out a heartbeat on a dog that stopped
+        moving. It self-extinguishes: one negative result ends the streak and
+        grace expires shortly after.
+        """
         state = self.state
         if now - state.last_detect < 1.0 / self.cfg.detect_fps:
             return
         state.last_detect = now
-        if state.in_zone_since is not None or now - state.last_infer >= config.MOTION_HEARTBEAT_SECONDS:
+        chasing = (state.in_zone_since is not None
+                   or state.present_streak > 0
+                   or (state.last_seen_in_zone > 0
+                       and now - state.last_seen_in_zone <= config.ABSENCE_GRACE))
+        if chasing or now - state.last_infer >= config.MOTION_HEARTBEAT_SECONDS:
             run = True
         else:
             run, state.motion_bg = motion_detected(

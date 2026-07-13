@@ -30,12 +30,12 @@ def test_same_inference_repeated_never_arms():
     assert s.present_streak == 1
 
 
-def test_two_distinct_inferences_arm():
-    """Two distinct positive inference results must arm the timer."""
+def test_two_distinct_inferences_arm_backdated():
+    """Two distinct positive inferences arm the timer, backdated to the first sighting."""
     s = _fresh_state()
     assert _call(True, s, BASE, boxes_at=BASE + 0.0) is False   # streak 1
     assert _call(True, s, BASE + 0.1, boxes_at=BASE + 0.1) is False  # streak 2 → armed
-    assert s.in_zone_since is not None
+    assert s.in_zone_since == BASE
 
 
 def test_single_blip_never_arms():
@@ -56,7 +56,8 @@ def test_two_consecutive_arms_then_fires_after_persist():
     assert _call(True, s, BASE, boxes_at=BASE + 0.0) is False       # streak 1
     assert _call(True, s, BASE + 0.1, boxes_at=BASE + 0.1) is False  # streak 2 → armed
     assert s.in_zone_since is not None
-    fire_at = BASE + 0.1 + config.PERSIST_SECONDS + 0.01
+    # Timer is backdated to the first sighting, so persist counts from BASE.
+    fire_at = BASE + config.PERSIST_SECONDS + 0.01
     assert _call(True, s, fire_at, boxes_at=BASE + 0.2) is True
 
 
@@ -88,6 +89,35 @@ def test_stale_boxes_do_not_disarm_streak_between_inferences():
     # New positive inference arms
     assert _call(True, s, BASE + 0.6, boxes_at=BASE + 0.6) is False  # streak 2 → armed
     assert s.in_zone_since is not None
+
+
+def test_stale_streak_past_grace_starts_fresh_accumulation():
+    """A positive long after the last sighting must not combine with a stale
+    streak into a backdated arm (which would fire instantly off one detection)."""
+    s = _fresh_state()
+    _call(True, s, BASE, boxes_at=BASE + 0.0)  # streak 1, then the dog vanishes unseen
+    late = BASE + 60.0
+    assert _call(True, s, late, boxes_at=late) is False  # fresh streak of 1, not armed
+    assert s.in_zone_since is None
+    assert s.present_streak == 1
+    assert s.streak_started_at == late
+    # The confirming positive arrives promptly → armed, backdated only to `late`.
+    assert _call(True, s, late + 0.1, boxes_at=late + 0.1) is False
+    assert s.in_zone_since == late
+
+
+def test_reset_drops_accumulation():
+    """reset() (used by /pause) clears the timer and the streak."""
+    s = _fresh_state()
+    _call(True, s, BASE, boxes_at=BASE + 0.0)
+    _call(True, s, BASE + 0.1, boxes_at=BASE + 0.1)  # armed
+    persistence.reset(s)
+    assert s.in_zone_since is None
+    assert s.present_streak == 0
+    assert s.streak_started_at == 0.0
+    # A lone positive after reset must not re-arm off pre-reset history.
+    assert _call(True, s, BASE + 0.2, boxes_at=BASE + 0.2) is False
+    assert s.in_zone_since is None
 
 
 def test_cooldown_blocks_refire():

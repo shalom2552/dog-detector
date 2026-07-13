@@ -15,6 +15,7 @@ from telegram.ext import ContextTypes
 
 import config
 from alerts import actions, i18n
+from pipeline import persistence
 from storage import settings
 from alerts.bot import context, view
 from web import hub
@@ -82,7 +83,7 @@ async def _cmd_pause(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return
     for worker in workers:
         worker.state.paused = True
-        worker.state.in_zone_since = None  # drop accumulation so resume starts fresh
+        persistence.reset(worker.state)  # drop accumulation so resume starts fresh
     names = ", ".join([f"<i>{w.cfg.name}</i>" for w in workers])
     log.info("[bot] Detection paused: %s", [w.cfg.id for w in workers])
     await update.message.reply_html(f"⏸ <b>Detection paused</b> for: {names}")

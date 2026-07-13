@@ -15,6 +15,7 @@ class DetectionState:
     in_zone_since: Optional[float] = None  # monotonic: dog first appeared in zone
     last_seen_in_zone: float = 0.0         # monotonic: last positive detection
     present_streak: int = 0                # consecutive fresh positive inferences (arming)
+    streak_started_at: float = 0.0         # monotonic: first sighting of the current streak
     last_streak_boxes_at: float = 0.0      # boxes_at of the inference that last touched the streak
     last_fire: float = 0.0                 # monotonic: last trigger firing (cooldown logic)
     last_fire_wall: float = 0.0            # wall clock: last trigger firing (display only)
