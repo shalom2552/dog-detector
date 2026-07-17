@@ -74,14 +74,14 @@ All config lives in `.env`. Full reference in `.env.example`.
 | `ZONE_POINTS` | rectangle | Polygon in normalized `x,y` pairs. Easier: draw it in the web view (edits persist, see below) |
 | `ZONE_MIN_OVERLAP` | `0.6` | Fraction of a detection box that must be inside the zone to count (0-1] |
 | `MODEL` | `yolo11n.pt` | Model weights, see [models](#models) |
-| `CONF_THRESHOLD` | `0.35` | Minimum detection confidence (0-1) |
+| `CONF_THRESHOLD` | `0.30` | Minimum detection confidence (0-1) |
 | `PERSIST_SECONDS` | `3.0` | Dog must hold the zone this long before triggering |
 | `COOLDOWN_SECONDS` | `30.0` | Minimum gap between consecutive triggers |
 | `DETECT_FPS` | `3.0` | Inference rate (motion gate reduces actual YOLO calls further) |
 | `STREAM_FPS` | `10.0` | Web UI refresh rate, independent of inference |
 | `IMGSZ` | `320` | Inference resolution in pixels |
 | `MOTION_THRESHOLD` | `100` | Pixels changed in zone crop before YOLO runs (0 = always, 4096 = never) |
-| `MOTION_HEARTBEAT_SECONDS` | `10.0` | Force inference at least this often so a stationary dog is still caught |
+| `MOTION_HEARTBEAT_SECONDS` | `3.0` | Force inference at least this often so a stationary dog is still caught |
 | `ENABLE_SERVER_SOUND` | `false` | Play sound in the container (needs a mapped audio device); the launcher plays client-side regardless |
 | `ENABLE_TELEGRAM` | `false` | Send Telegram alerts and enable the bot |
 
@@ -109,7 +109,7 @@ One camera needs no extra config. For several, create **`data/cameras.json`**
 {
   "defaults": {
     "detect_fps": 3.0,
-    "conf_threshold": 0.35,
+    "conf_threshold": 0.30,
     "persist_seconds": 3.0,
     "cooldown_seconds": 30.0,
     "motion_threshold": 100,
@@ -158,7 +158,8 @@ All trade-offs are one env-var changes, no code edits needed.
 | Smoother web stream | `STREAM_FPS=30` | More JPEG encoding CPU |
 | Gate less aggressively | `MOTION_THRESHOLD=30` | YOLO runs on camera noise |
 | Gate more aggressively | `MOTION_THRESHOLD=500` | May miss a slow-moving dog (heartbeat still catches it) |
-| Catch a stiller dog sooner | `MOTION_HEARTBEAT_SECONDS=5` | More idle inference / CPU |
+| Less idle CPU | `MOTION_HEARTBEAT_SECONDS=10` | A dog that settled unseen waits longer for its first detection |
+| Catch a lying/sleeping dog better | `CONF_THRESHOLD=0.25` | More false boxes (persistence filters most) |
 | Fewer edge false-negatives | `ZONE_MIN_OVERLAP=0.15` | A dog merely near the zone may trigger |
 | Stricter zone membership | `ZONE_MIN_OVERLAP=0.6` | Dog must be well inside the zone |
 
