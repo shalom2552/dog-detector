@@ -60,24 +60,34 @@ class Supervisor:
             return
         self._spawn(cam_id)
 
+    def _check_workers(self, now):
+        """Restart any dead worker thread, honoring its backoff window."""
+        for cam_id, thread in list(self._threads.items()):
+            if thread.is_alive():
+                # A worker that stayed up long enough earns a fresh backoff.
+                if now - self._spawned_at[cam_id] >= config.WORKER_STABLE_SECONDS:
+                    self._delay[cam_id] = config.WORKER_BACKOFF
+                continue
+            if cam_id not in self._retry_at:
+                delay = self._delay.get(cam_id, config.WORKER_BACKOFF)
+                log.warning("[%s] worker died — restarting in %.0fs", cam_id, delay)
+                self.workers[cam_id].stop()  # release the reader right away
+                self._retry_at[cam_id] = now + delay
+            elif now >= self._retry_at[cam_id]:
+                self._restart(cam_id, now)
+
     def _monitor(self):
-        """Watch worker threads until interrupted; restart any that die, with backoff."""
+        """Watch worker threads until interrupted; restart any that die, with backoff.
+
+        Each sweep is guarded: a failure while stopping or rebuilding one worker
+        must not escape and take the whole process down with it.
+        """
         while True:
             time.sleep(1.0)
-            now = time.monotonic()
-            for cam_id, thread in list(self._threads.items()):
-                if thread.is_alive():
-                    # A worker that stayed up long enough earns a fresh backoff.
-                    if now - self._spawned_at[cam_id] >= config.WORKER_STABLE_SECONDS:
-                        self._delay[cam_id] = config.WORKER_BACKOFF
-                    continue
-                if cam_id not in self._retry_at:
-                    delay = self._delay.get(cam_id, config.WORKER_BACKOFF)
-                    log.warning("[%s] worker died — restarting in %.0fs", cam_id, delay)
-                    self.workers[cam_id].stop()  # release the reader right away
-                    self._retry_at[cam_id] = now + delay
-                elif now >= self._retry_at[cam_id]:
-                    self._restart(cam_id, now)
+            try:
+                self._check_workers(time.monotonic())
+            except Exception:
+                log.exception("Worker monitor sweep failed — retrying next sweep")
 
     # ── Run ──────────────────────────────────────────────────────────────────
 
@@ -109,5 +119,8 @@ class Supervisor:
         finally:
             # SIGTERM (SystemExit) / Ctrl-C land here: stop loops, release readers.
             for worker in self.workers.values():
-                worker.stop()
+                try:
+                    worker.stop()
+                except Exception:  # noqa: BLE001 — keep stopping the rest
+                    log.exception("[%s] worker stop failed", worker.cfg.id)
             shutdown_alert()

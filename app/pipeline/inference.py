@@ -68,8 +68,15 @@ class InferenceWorker:
         return True
 
     def _loop(self):
+        # Guarded: this is the only inference thread, so an escaped exception
+        # would leave every camera blind for good.
         while True:
-            self._ready.wait()
-            self._ready.clear()
-            while self._service_next():
-                pass
+            try:
+                self._ready.wait()
+                self._ready.clear()
+                while self._service_next():
+                    pass
+            except Exception:
+                log.exception("Inference loop error — recovering")
+                time.sleep(1.0)
+                self._ready.set()  # re-arm: service anything still queued right away
