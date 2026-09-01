@@ -15,6 +15,20 @@ log = logging.getLogger("triggers")
 _net = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="trigger-net")
 
 
+def _submit(fn, *args):
+    """Queue fn on the network executor; a raised exception is logged, never lost.
+
+    Nobody reads the futures, so without this wrapper a failing action would
+    vanish silently along with its alert.
+    """
+    def guarded():
+        try:
+            fn(*args)
+        except Exception:
+            log.exception("Trigger action %s failed", fn.__name__)
+    _net.submit(guarded)
+
+
 def console_alert(cam):
     log.info("🐶 DOG IN ZONE (console trigger) [%s]", cam.name)
 
@@ -34,7 +48,7 @@ def telegram_alert(cam, state=None):
 
 def startup_alert():
     # Off the main thread so an offline Telegram (10s timeout) can't delay startup.
-    _net.submit(lambda: actions.telegram_send(i18n.msg("startup")))
+    _submit(actions.telegram_send, i18n.msg("startup"))
 
 
 def shutdown_alert():
@@ -44,5 +58,5 @@ def shutdown_alert():
 
 def fire_triggers(cam, state=None):
     console_alert(cam)
-    actions.sound_alert(camera=cam.name)      # non-blocking (Popen)
-    _net.submit(telegram_alert, cam, state)   # JPEG encode + network leave the hot path
+    actions.sound_alert(camera=cam.name)     # non-blocking (Popen)
+    _submit(telegram_alert, cam, state)      # JPEG encode + network leave the hot path

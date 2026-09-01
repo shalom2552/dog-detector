@@ -96,11 +96,18 @@ MOTION_DIFF_THRESHOLD = 20   # per-pixel intensity delta counted as "changed"
 MOTION_BG_ALPHA       = 0.05 # EMA weight folding each frame into the motion background
 NMS_IOU               = 0.45 # IoU threshold for non-max suppression (ONNX backend)
 ONNX_NUM_THREADS      = 4    # ONNX Runtime intra-op threads; >4 adds sync cost, not speed, at this imgsz
-# Dead-worker restart backoff: first retry after WORKER_BACKOFF, doubling up to
-# WORKER_BACKOFF_CAP; reset once alive for WORKER_STABLE_SECONDS.
+# Background-service restart backoff (camera workers, Telegram polling, web
+# server): first retry after WORKER_BACKOFF, doubling up to WORKER_BACKOFF_CAP;
+# reset once alive for WORKER_STABLE_SECONDS.
 WORKER_BACKOFF        = 5.0
 WORKER_BACKOFF_CAP    = 60.0
 WORKER_STABLE_SECONDS = 120.0
+# Telegram send retries: transient failures (timeouts, 5xx, flood control) get
+# up to TELEGRAM_SEND_ATTEMPTS tries, spaced TELEGRAM_RETRY_DELAY apart; flood
+# control honors the server's Retry-After, capped at TELEGRAM_RETRY_MAX.
+TELEGRAM_SEND_ATTEMPTS = 3
+TELEGRAM_RETRY_DELAY   = 2.0
+TELEGRAM_RETRY_MAX     = 30.0
 
 
 def validate():

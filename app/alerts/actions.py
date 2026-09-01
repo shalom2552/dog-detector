@@ -8,6 +8,8 @@ caller's job.
 import logging
 import os
 import subprocess
+import time
+import urllib.error
 import urllib.request
 import urllib.parse
 import uuid
@@ -51,6 +53,37 @@ def _telegram_post(method, data, headers=None):
         return resp.status
 
 
+def _retry_delay(err):
+    """Wait suggested by a flood-control response (Retry-After), bounded; else the default."""
+    try:
+        return min(float(err.headers.get("Retry-After", config.TELEGRAM_RETRY_DELAY)),
+                   config.TELEGRAM_RETRY_MAX)
+    except (TypeError, ValueError):
+        return config.TELEGRAM_RETRY_DELAY
+
+
+def _post_with_retry(method, data, headers=None):
+    """POST with bounded retries for transient failures (timeouts, 5xx, flood control).
+
+    Other client errors (4xx) are permanent — re-raised immediately so callers
+    can fall back instead of thrashing the API.
+    """
+    for attempt in range(1, config.TELEGRAM_SEND_ATTEMPTS + 1):
+        try:
+            return _telegram_post(method, data, headers)
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500 or attempt == config.TELEGRAM_SEND_ATTEMPTS:
+                raise
+            delay = _retry_delay(e) if e.code == 429 else config.TELEGRAM_RETRY_DELAY
+            log.warning("Telegram %s got HTTP %s — retrying in %.0fs", method, e.code, delay)
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if attempt == config.TELEGRAM_SEND_ATTEMPTS:
+                raise
+            delay = config.TELEGRAM_RETRY_DELAY
+            log.warning("Telegram %s failed (%s) — retrying in %.0fs", method, e, delay)
+        time.sleep(delay)
+
+
 def telegram_send(text, chat_id=None):
     """Send a message to chat_id (default: the global chat) with HTML formatting."""
     if not _telegram_ready():
@@ -62,7 +95,7 @@ def telegram_send(text, chat_id=None):
     }
     data = urllib.parse.urlencode(payload).encode()
     try:
-        status = _telegram_post("sendMessage", data)
+        status = _post_with_retry("sendMessage", data)
         if status == 200:
             log.info("Telegram sent: %s", text)
         else:
@@ -72,7 +105,11 @@ def telegram_send(text, chat_id=None):
 
 
 def telegram_send_photo(jpg_bytes, caption=None, chat_id=None):
-    """Send a JPEG photo (optional HTML caption) to chat_id (default: the global chat)."""
+    """Send a JPEG photo (optional HTML caption) to chat_id (default: the global chat).
+
+    If the photo is rejected outright, the caption still goes out as a plain
+    message — a degraded alert beats a silently dropped one.
+    """
     if not _telegram_ready():
         return
     fields = {
@@ -83,13 +120,16 @@ def telegram_send_photo(jpg_bytes, caption=None, chat_id=None):
         fields["caption"] = caption
     body, content_type = _multipart(fields, "photo", "snapshot.jpg", jpg_bytes)
     try:
-        status = _telegram_post("sendPhoto", body, {"Content-Type": content_type})
+        status = _post_with_retry("sendPhoto", body, {"Content-Type": content_type})
         if status == 200:
             log.info("Telegram photo sent (%d bytes): %s", len(jpg_bytes), caption)
         else:
             log.warning("Telegram returned status %s", status)
     except Exception as e:  # noqa: BLE001
         log.warning("Telegram photo send failed: %s", e)
+        if caption:
+            log.info("Falling back to text-only alert")
+            telegram_send(caption, chat_id=chat_id)
 
 
 def _multipart(fields, file_field, filename, file_bytes):
@@ -124,3 +164,5 @@ def sound_alert(path=config.SOUND_PATH, camera=None):
         log.info("sound_alert: playing %s", path)
     except FileNotFoundError:
         log.warning("sound_alert: mpg123 not installed; skipping server playback")
+    except OSError as e:
+        log.warning("sound_alert: playback failed: %s", e)
