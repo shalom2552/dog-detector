@@ -9,6 +9,7 @@ client for the connection's life, which suits its thread-per-request model.
 """
 
 import hmac
+import logging
 import math
 import threading
 import time
@@ -17,6 +18,8 @@ import flask
 
 import config
 from web import hub
+
+log = logging.getLogger("web")
 
 app = flask.Flask(__name__)
 _workers = None
@@ -168,10 +171,23 @@ def index():
 # ── Startup ─────────────────────────────────────────────────────────────────
 
 
+def _serve(host, port):
+    """Run the dev server forever; restart it with backoff if it ever crashes."""
+    delay = config.WORKER_BACKOFF
+    while True:
+        started = time.monotonic()
+        try:
+            app.run(host=host, port=port, threaded=True)
+            return  # clean exit (never expected: the server runs forever)
+        except Exception:
+            log.exception("Web server crashed — restarting in %.0fs", delay)
+        if time.monotonic() - started >= config.WORKER_STABLE_SECONDS:
+            delay = config.WORKER_BACKOFF
+        time.sleep(delay)
+        delay = min(delay * 2, config.WORKER_BACKOFF_CAP)
+
+
 def start(workers=None, host=config.WEB_HOST, port=config.WEB_PORT):
     global _workers
     _workers = workers
-    threading.Thread(
-        target=lambda: app.run(host=host, port=port, threaded=True),
-        daemon=True,
-    ).start()
+    threading.Thread(target=_serve, args=(host, port), daemon=True).start()
